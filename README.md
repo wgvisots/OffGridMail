@@ -71,8 +71,8 @@ types are not allowed on production servers" until the program is registered.
 gateway's frequency, 1200 baud, radio's own APRS beacons off):
 
 ```sh
-build/ogm connect d75 28:3C:90:77:11:DF W1AW-10            # direct
-build/ogm connect d75 28:3C:90:77:11:DF W1AW-10 --via RELAY # through a digipeater
+build/ogm connect d75 AA:BB:CC:DD:EE:FF W1AW-10            # direct
+build/ogm connect d75 AA:BB:CC:DD:EE:FF W1AW-10 --via RELAY # through a digipeater
 ```
 
 Add `--monitor` to see every AX.25 frame and `--verbose` for the B2F lines.

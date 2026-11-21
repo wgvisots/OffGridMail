@@ -111,10 +111,10 @@ TEST(mailbox_basics) {
     REQUIRE(raw);
     CHECK_EQ(std::string(raw->begin(), raw->end()), std::string("hello"));
     // Real CMS message IDs carry '#' and '$'.
-    CHECK(mb.save(Mailbox::Folder::In, "NZ5R#$29RI1R", asBytes("from the CMS")));
-    CHECK(mb.find("NZ5R#$29RI1R") == Mailbox::Folder::In);
+    CHECK(mb.save(Mailbox::Folder::In, "N0CALL#$29RI1", asBytes("from the CMS")));
+    CHECK(mb.find("N0CALL#$29RI1") == Mailbox::Folder::In);
     REQUIRE(mb.list(Mailbox::Folder::In).size() == 1);
-    CHECK_EQ(mb.list(Mailbox::Folder::In)[0], std::string("NZ5R#$29RI1R"));
+    CHECK_EQ(mb.list(Mailbox::Folder::In)[0], std::string("N0CALL#$29RI1"));
     // MIDs come off the air: no path tricks.
     CHECK(!mb.save(Mailbox::Folder::In, "../evil", asBytes("x")));
     CHECK(!mb.save(Mailbox::Folder::In, "a/b", asBytes("x")));

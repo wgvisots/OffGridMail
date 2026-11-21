@@ -26,7 +26,7 @@ Mailbox::Mailbox(fs::path root) : root_(std::move(root)) {
 }
 
 // MIDs come off the air: never let one name a path outside the mailbox.
-// The CMS uses IDs like "NZ5R#$29RI1R", so allow printable ASCII except path
+// The CMS uses IDs like "N0CALL#$29RI1", so allow printable ASCII except path
 // separators, and no leading dot.
 bool Mailbox::safeMid(const std::string& mid) {
     if (mid.empty() || mid.size() > 32 || mid.front() == '.') return false;

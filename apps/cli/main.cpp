@@ -3,7 +3,7 @@
 //   ogm compose --to friend@example.com --subject "Hi" < body.txt
 //   ogm list [in|out|sent|archive]
 //   ogm read MID
-//   ogm connect d75 28:3C:90:77:11:DF W1AW-10        # TH-D75 over Bluetooth
+//   ogm connect d75 AA:BB:CC:DD:EE:FF W1AW-10        # TH-D75 over Bluetooth
 //   ogm connect kiss-tcp 127.0.0.1:8001 W1AW-10      # Direwolf, or ogmfake
 //   ogm connect telnet                               # the Winlink CMS, no radio
 //
@@ -118,7 +118,7 @@ fs::path configDir() {
 }
 
 // The GNOME/KDE keyring through libsecret's secret-tool, if it is installed:
-//   secret-tool store --label "Winlink NZ5R" service ogm account NZ5R
+//   secret-tool store --label "Winlink N0CALL" service ogm account N0CALL
 std::string keyringPassword(const std::string& call) {
     if (std::system("command -v secret-tool >/dev/null 2>&1") != 0) return {};
     std::string cmd = "secret-tool lookup service ogm account '" + call + "' 2>/dev/null";

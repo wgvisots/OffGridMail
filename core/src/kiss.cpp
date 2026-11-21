@@ -6,7 +6,18 @@ Bytes wrap(std::span<const std::uint8_t> ax25, std::uint8_t port) {
     Bytes out;
     out.reserve(ax25.size() + 8);
     out.push_back(FEND);
-    out.push_back(static_cast<std::uint8_t>((port & 0x0F) << 4));
+    auto put = [&](std::uint8_t b) {
+        if (b == FEND) {
+            out.push_back(FESC);
+            out.push_back(TFEND);
+        } else if (b == FESC) {
+            out.push_back(FESC);
+            out.push_back(TFESC);
+        } else {
+            out.push_back(b);
+        }
+    };
+    put(static_cast<std::uint8_t>((port & 0x0F) << 4));  // port 12 makes 0xC0
     for (std::uint8_t b : ax25) {
         if (b == FEND) {
             out.push_back(FESC);

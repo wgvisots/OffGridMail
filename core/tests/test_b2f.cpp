@@ -268,3 +268,15 @@ TEST(b2f_store_failure_stops_before_acknowledging) {
     CHECK(!has(evM, Kind::Sent, c.mid));      // and so did not count it as delivered
     CHECK(failure(evM).find("disk full") != std::string::npos);
 }
+
+// Found by fuzzing: a bare "FC" proposal line read past its end and threw.
+TEST(b2f_short_proposal_line_fails_cleanly) {
+    Session s(clientCfg(), {}, nullptr);
+    s.onData(ogm::asBytes("[WL2K-5.0-B2FWIHJM$]\rCMS>\r"));
+    s.takeOut();
+    s.onData(ogm::asBytes("FC\r"));
+    CHECK(s.failed());
+    Session t(clientCfg(), {}, nullptr);
+    t.onData(ogm::asBytes("[WL2K-5.0-B2FWIHJM$]\rCMS>\rFC E\r"));
+    CHECK(t.failed());
+}

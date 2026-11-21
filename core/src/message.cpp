@@ -35,7 +35,7 @@ std::int64_t daysFromCivil(std::int64_t y, unsigned m, unsigned d) {
     y -= m <= 2;
     const std::int64_t era = (y >= 0 ? y : y - 399) / 400;
     const unsigned yoe = static_cast<unsigned>(y - era * 400);
-    const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    const unsigned doy = (153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1;
     const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     return era * 146097 + static_cast<std::int64_t>(doe) - 719468;
 }
@@ -117,6 +117,16 @@ std::string charsetOf(const Message& m) {
     auto end = cs.find_first_of("\"; ");
     if (end != std::string::npos) cs.resize(end);
     return cs.empty() ? "ISO-8859-1" : cs;
+}
+
+// A header value as stored: control characters (a stray CR, NUL...) become
+// spaces, then the ends are trimmed, so writing it out and reading it back
+// gives the same value.
+std::string cleanValue(std::string_view v) {
+    std::string out(v);
+    for (char& c : out)
+        if (static_cast<unsigned char>(c) < 0x20 || c == 0x7F) c = ' ';
+    return std::string(trim(out));
 }
 
 std::string crlf(std::string_view text) {
@@ -460,12 +470,23 @@ std::optional<Message> Message::parse(ByteView raw, std::string* error) {
         i = eol + 1;
         if (line.empty()) break;
         if ((line.front() == ' ' || line.front() == '\t') && !m.headers_.empty()) {
-            m.headers_.back().second += " " + std::string(trim(line));
+            std::string more = cleanValue(line);
+            auto& value = m.headers_.back().second;
+            if (!more.empty()) value += (value.empty() ? "" : " ") + more;
             continue;
         }
         auto colon = line.find(':');
         if (colon == std::string_view::npos || colon == 0) return fail("malformed header line: " + std::string(line));
-        m.headers_.emplace_back(std::string(trim(line.substr(0, colon))), std::string(trim(line.substr(colon + 1))));
+        std::string_view name = trim(line.substr(0, colon));
+        // Field names are printable ASCII without spaces or colons (RFC 5322).
+        bool nameOk = !name.empty() && std::all_of(name.begin(), name.end(), [](char c) {
+            auto u = static_cast<unsigned char>(c);
+            return u > 0x20 && u < 0x7F;
+        });
+        if (!nameOk) return fail("malformed header name: " + std::string(line));
+        // A stray CR or other control character inside a value would break
+        // the message when it is written out again.
+        m.headers_.emplace_back(std::string(name), cleanValue(line.substr(colon + 1)));
     }
     if (m.mid().empty()) return fail("no Mid header");
 

@@ -29,6 +29,8 @@ void putAddress(Bytes& out, const Address& a, bool bit7, bool last) {
 
 }  // namespace
 
+bool Address::valid() const { return validCall(call) && ssid <= 15; }
+
 bool hasPid(std::uint8_t control) {
     if ((control & 0x01) == 0) return true;               // I frame
     return (control & 0xEF) == kControlUi;                // UI, with or without P/F

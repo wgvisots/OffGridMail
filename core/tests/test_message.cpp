@@ -151,3 +151,16 @@ TEST(message_detects_account_activation) {
     REQUIRE(none);
     CHECK(none->empty());
 }
+
+// Found by fuzzing: odd headers parsed but could not be written back out.
+TEST(message_odd_headers_survive_a_round_trip) {
+    std::string err;
+    CHECK(!Message::parse(ogm::asBytes("Mid: A\r\nBad Name: x\r\nBody: 0\r\n\r\n"), &err));
+    CHECK(err.find("header name") != std::string::npos);
+    auto m = Message::parse(ogm::asBytes("Mid: A\r\nTo: SMTP:a@b.c\r@b.c\r\nBody: 0\r\n\r\n"));
+    REQUIRE(m);
+    CHECK_EQ(m->to()[0], std::string("SMTP:a@b.c @b.c"));
+    auto again = Message::parse(m->serialize());
+    REQUIRE(again);
+    CHECK_EQ(again->to()[0], m->to()[0]);
+}

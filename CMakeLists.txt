@@ -13,12 +13,25 @@ endif()
 option(OGM_BUILD_TESTS "Build core unit tests" ON)
 option(OGM_SANITIZE "Build with address and undefined-behavior sanitizers" OFF)
 
+option(OGM_FUZZ "Build libFuzzer targets for the parsers (Clang only)" OFF)
+
+if(OGM_FUZZ)
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(FATAL_ERROR "OGM_FUZZ needs Clang (configure with CXX=clang++)")
+  endif()
+  # Instrument everything for coverage; only the fuzz targets link libFuzzer's main.
+  add_compile_options(-fsanitize=fuzzer-no-link,address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=address,undefined)
+endif()
+
 if(OGM_SANITIZE)
   add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
   add_link_options(-fsanitize=address,undefined)
 endif()
 
-set(OGM_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Wconversion -Wshadow>)
+option(OGM_WERROR "Treat compiler warnings as errors (CI)" OFF)
+set(OGM_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Wconversion -Wshadow>
+                 $<$<AND:$<BOOL:${OGM_WERROR}>,$<CXX_COMPILER_ID:GNU,Clang>>:-Werror>)
 
 # ---- The portable core: protocol, link layer, mailbox.  No sockets, no clock.
 add_library(ogmcore STATIC
@@ -78,4 +91,22 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID)
   target_link_libraries(ogmfake PRIVATE ogmsim)
   target_compile_options(ogmfake PRIVATE ${OGM_WARNINGS})
   install(TARGETS ogm RUNTIME DESTINATION bin)
+
+  if(OGM_BUILD_TESTS)
+    add_test(NAME e2e_cli COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/e2e_cli.sh $<TARGET_FILE:ogm> $<TARGET_FILE:ogmfake>)
+    set_tests_properties(e2e_cli PROPERTIES TIMEOUT 400)
+  endif()
+endif()
+
+# ---- Fuzzers.  Each one also runs its seed corpus as a regular test.
+if(OGM_FUZZ)
+  foreach(name kiss ax25 ax25_link lzhuf message b2f)
+    add_executable(fuzz_${name} fuzz/fuzz_${name}.cpp)
+    target_link_libraries(fuzz_${name} PRIVATE ogmcore)
+    target_link_options(fuzz_${name} PRIVATE -fsanitize=fuzzer)
+    if(OGM_BUILD_TESTS)
+      add_test(NAME fuzz_${name}_corpus
+               COMMAND fuzz_${name} -runs=0 ${CMAKE_CURRENT_SOURCE_DIR}/fuzz/corpus/${name})
+    endif()
+  endforeach()
 endif()

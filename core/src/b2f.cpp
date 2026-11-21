@@ -350,6 +350,10 @@ void Session::remoteTurnLine(std::string_view text) {
             inChecksum_ += '\r';
             Proposal p;
             p.code = text[1];
+            if (text.size() < 4) {
+                fail("malformed proposal: " + std::string(text));
+                return;
+            }
             auto f = split(text.substr(3));
             if (f.size() < 4) {
                 fail("malformed proposal: " + std::string(text));

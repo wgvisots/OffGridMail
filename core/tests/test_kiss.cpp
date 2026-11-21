@@ -109,3 +109,14 @@ TEST(kiss_parameter_command) {
     CHECK_EQ(parameter(kTxDelay, 30), (Bytes{FEND, 0x01, 30, FEND}));
     CHECK_EQ(parameter(kPersistence, 0xC0), (Bytes{FEND, 0x02, FESC, TFEND, FEND}));
 }
+
+// Found by fuzzing: port 12's command byte is 0xC0 (FEND) and must be escaped.
+TEST(kiss_command_byte_is_escaped) {
+    Bytes w = wrap(Bytes{0x41}, 12);
+    CHECK_EQ(w, (Bytes{FEND, FESC, TFEND, 0x41, FEND}));
+    Decoder d;
+    auto items = d.feed(w);
+    REQUIRE(items.size() == 1);
+    CHECK_EQ(items[0].command, 0xC0);
+    CHECK_EQ(items[0].data, (Bytes{0x41}));
+}

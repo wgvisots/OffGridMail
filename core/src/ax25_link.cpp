@@ -244,6 +244,11 @@ void Link::replyDm(const Frame& f, bool pf, TimeMs now) {
 }
 
 bool Link::forMe(const Frame& f) const {
+    // Garbage in the address field (noise, or a station misbehaving) would
+    // become the address we answer to, and our answers couldn't be encoded.
+    if (!f.src.valid()) return false;
+    for (const auto& a : f.path)
+        if (!a.valid()) return false;
     return f.dest.sameStation(cfg_.mycall) && f.fullyRepeated();
 }
 

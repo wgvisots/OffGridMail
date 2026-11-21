@@ -276,3 +276,18 @@ TEST(link_carries_a_full_winlink_session) {
     CHECK(master.finished() && !master.failed());
     CHECK(a.state() == Link::State::Disconnected);
 }
+
+// Found by fuzzing: a SABM from a "callsign" of garbage was accepted.
+TEST(link_ignores_frames_from_invalid_callsigns) {
+    LinkConfig c = cfg("W1AW-10", true);
+    Link b(c);
+    Frame sabm;
+    sabm.dest = *Address::parse("W1AW-10");
+    sabm.src = Address{"n0~ll", 0, false};  // lower case and '~': not a callsign
+    sabm.cr = Cr::Command;
+    sabm.control = 0x3F;
+    sabm.pid.reset();
+    b.onFrame(sabm, 0);
+    CHECK(b.state() == Link::State::Disconnected);
+    CHECK(b.takeOutgoing().empty());
+}

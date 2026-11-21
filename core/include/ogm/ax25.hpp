@@ -27,6 +27,8 @@ struct Address {
     static std::optional<Address> parse(std::string_view text);
 
     bool sameStation(const Address& o) const { return call == o.call && ssid == o.ssid; }
+    // 1-6 upper-case letters and digits, SSID 0-15: something encode() accepts.
+    bool valid() const;
 };
 
 inline constexpr std::uint8_t kControlUi = 0x03;

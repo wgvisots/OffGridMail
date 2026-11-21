@@ -1,5 +1,7 @@
 # Off Grid Mail
 
+[![CI](https://github.com/wgvisots/OffGridMail/actions/workflows/ci.yml/badge.svg)](https://github.com/wgvisots/OffGridMail/actions/workflows/ci.yml)
+
 Winlink email over amateur radio, for Linux and Android, starting with the
 Kenwood TH-D75 on VHF/UHF packet and adding the Yaesu FT-710 on HF next.
 Design: [docs/design.md](docs/design.md).
@@ -12,7 +14,9 @@ Design: [docs/design.md](docs/design.md).
 | `sim/` | `FakeRms`: a pretend RMS gateway built from the core, for tests and `ogmfake` |
 | `apps/cli/` | `ogm`: compose, read, and connect from a terminal (Linux) |
 | `apps/fake/` | `ogmfake`: the pretend RMS on a TCP port (AX.25 over KISS, or Telnet) |
+| `fuzz/` | libFuzzer targets for every parser of outside data, with seed and regression corpora |
 | `tests/fixtures/` | TH-D75 captures (from aprs_sms) and LZHUF reference vectors (from Pat's wl2k-go) |
+| `tests/e2e_cli.sh` | `ogm` against `ogmfake` over real sockets |
 
 ## Build and test
 
@@ -75,7 +79,12 @@ Add `--monitor` to see every AX.25 frame and `--verbose` for the B2F lines.
 The app puts the radio in KISS mode on connect and takes it back out at the
 end, so the radio's own APRS works again between sessions.
 
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).  Please report security problems
+privately, as described in [SECURITY.md](SECURITY.md).
+
 ## License
 
-Apache 2.0, see [LICENSE](LICENSE).  The LZHUF fixtures are from Pat's
-wl2k-go (MIT); see `tests/fixtures/lzhuf/README.md`.
+Apache 2.0, see [LICENSE](LICENSE).  Third-party material (Pat's wl2k-go test
+vectors, MIT) is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

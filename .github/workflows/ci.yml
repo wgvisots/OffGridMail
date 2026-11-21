@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only by default; no job here needs to write anything.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  linux:
+    name: Linux ${{ matrix.compiler }} ${{ matrix.config }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+        config: [sanitize, release]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build libbluetooth-dev
+      - name: Configure
+        run: |
+          if [ "${{ matrix.compiler }}" = clang ]; then export CC=clang CXX=clang++; else export CC=gcc CXX=g++; fi
+          if [ "${{ matrix.config }}" = sanitize ]; then
+            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DOGM_SANITIZE=ON -DOGM_WERROR=ON
+          else
+            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DOGM_WERROR=ON
+          fi
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: ctest --test-dir build --output-on-failure
+
+  android:
+    name: Android NDK (core, arm64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+      - name: Build the core with the NDK
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 \
+            -DCMAKE_BUILD_TYPE=Release -DOGM_BUILD_TESTS=OFF -DOGM_WERROR=ON
+          cmake --build build
+
+  fuzz:
+    name: Fuzz the parsers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+      - name: Build fuzzers
+        run: |
+          CC=clang CXX=clang++ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DOGM_FUZZ=ON
+          cmake --build build
+      - name: Replay the seed and regression corpus
+        run: ctest --test-dir build -R fuzz_ --output-on-failure
+      - name: Fuzz each parser for 60 seconds
+        run: |
+          mkdir -p artifacts
+          status=0
+          for t in kiss ax25 ax25_link lzhuf message b2f; do
+            mkdir -p "work/$t" && cp fuzz/corpus/$t/* "work/$t/"
+            echo "::group::fuzz_$t"
+            build/fuzz_$t -max_total_time=60 -max_len=8192 -artifact_prefix="artifacts/$t-" "work/$t" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+      - name: Keep crash inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crashes
+          path: artifacts/
+          if-no-files-found: ignore
